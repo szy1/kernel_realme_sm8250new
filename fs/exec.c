@@ -77,7 +77,21 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
-#define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/vendor.qti.hardware.display.composer-service"
+#define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/android.hardware.graphics.composer"
+#define QTIHW_BIN_PREFIX "/vendor/bin/hw/vendor.qti.hardware"
+#define UDFPS_BIN_PREFIX "/vendor/bin/hw/android.hardware.biometrics.fingerprint"
+#define SFLINGER_BIN_PREFIX "/system/bin/surfaceflinger"
+#define NETD_BIN_PREFIX "/system/bin/netd"
+#define ZYGOTE32_BIN	"/system/bin/app_process32"
+#define ZYGOTE64_BIN	"/system/bin/app_process64"
+static atomic_t zygote32_pid;
+static atomic_t zygote64_pid;
+
+bool is_zygote_pid(pid_t pid)
+{
+	return atomic_read(&zygote32_pid) == pid ||
+		atomic_read(&zygote64_pid) == pid;
+}
 
 void __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
@@ -1855,7 +1869,11 @@ static int __do_execve_file(int fd, struct filename *filename,
 		goto out;
 
 	if (capable(CAP_SYS_ADMIN)) {
-                if (unlikely(!strncmp(filename->name,
+                if (unlikely(!strcmp(filename->name, ZYGOTE32_BIN)))
+			atomic_set(&zygote32_pid, current->pid);
+		else if (unlikely(!strcmp(filename->name, ZYGOTE64_BIN)))
+			atomic_set(&zygote64_pid, current->pid);
+                else if (unlikely(!strncmp(filename->name,
 					   HWCOMPOSER_BIN_PREFIX,
 					   strlen(HWCOMPOSER_BIN_PREFIX)))) {
 			current->flags |= PC_PRIME_AFFINE;
