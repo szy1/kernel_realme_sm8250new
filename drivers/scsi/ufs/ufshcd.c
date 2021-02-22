@@ -3966,7 +3966,6 @@ send_orig_cmd:
 		lrbp->cmd = NULL;
 		clear_bit_unlock(tag, &hba->lrb_in_use);
 		ufshcd_release_all(hba);
-		ufshcd_vops_pm_qos_req_end(hba, cmd->request, true);
 		goto out;
 	}
 
@@ -3975,10 +3974,8 @@ send_orig_cmd:
 		lrbp->cmd = NULL;
 		clear_bit_unlock(tag, &hba->lrb_in_use);
 		ufshcd_release_all(hba);
-		ufshcd_vops_pm_qos_req_end(hba, cmd->request, true);
 		goto out;
 	}
-
 
 	/* Make sure descriptors are ready before ringing the doorbell */
 	wmb();
@@ -4005,7 +4002,6 @@ send_orig_cmd:
 		lrbp->cmd = NULL;
 		clear_bit_unlock(tag, &hba->lrb_in_use);
 		ufshcd_release_all(hba);
-		ufshcd_vops_pm_qos_req_end(hba, cmd->request, true);
 		dev_err(hba->dev, "%s: failed sending command, %d\n",
 							__func__, err);
 		err = DID_ERROR;
@@ -6715,42 +6711,6 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 			lrbp->cmd = NULL;
 			hba->ufs_stats.clk_rel.ctx = XFR_REQ_COMPL;
 
-			if (cmd->request) {
-				/*
-				 * As we are accessing the "request" structure,
-				 * this must be called before calling
-				 * ->scsi_done() callback.
-				 */
-				ufshcd_vops_pm_qos_req_end(hba, cmd->request,
-					false);
-			}
-#ifdef OPLUS_FEATURE_UFS_SHOW_LATENCY
-			if (cmd->request) {
-				/* Update IO svc time latency histogram */
-				u_int64_t delta_us = ktime_us_delta(lrbp->compl_time_stamp, lrbp->issue_time_stamp);
-				struct request *req = cmd->request;
-				unsigned int option = req_op(req);
-				if (hba->latency_hist_enabled &&(!blk_rq_is_passthrough(req))){
-					if(option == REQ_OP_WRITE || option == REQ_OP_WRITE_SAME){
-						io_update_latency_hist(&hba->io_lat_write, delta_us, blk_rq_sectors(req));
-					}else if(option == REQ_OP_READ){
-						io_update_latency_hist(&hba->io_lat_read, delta_us, blk_rq_sectors(req));
-					}else{
-						io_update_latency_hist(&hba->io_lat_other, delta_us, blk_rq_sectors(req));
-					}
-				}
-#ifdef CONFIG_TRACEPOINTS
-				if(trace_ufshcd_command_enabled()){
-					if((5000 < delta_us) && bio_has_data(req->bio)){
-						trace_printk("ufs_io_latency:%06lld us, io_type:%s, LBA:%08x, size:%d\n",
-							delta_us, (rq_data_dir(req) == READ) ? "R" : "W",
-							(unsigned int)req->bio->bi_iter.bi_sector,
-							cmd->sdb.length);
-					}
-				}
-#endif
-			}
-#endif
 			clear_bit_unlock(index, &hba->lrb_in_use);
 			/*
 			 *__ufshcd_release and __ufshcd_hibern8_release is
@@ -6824,15 +6784,7 @@ void ufshcd_abort_outstanding_transfer_requests(struct ufs_hba *hba, int result)
 			update_req_stats(hba, lrbp);
 			/* Mark completed command as NULL in LRB */
 			lrbp->cmd = NULL;
-			if (cmd->request) {
-				/*
-				 * As we are accessing the "request" structure,
-				 * this must be called before calling
-				 * ->scsi_done() callback.
-				 */
-				ufshcd_vops_pm_qos_req_end(hba, cmd->request,
-					true);
-			}
+
 			clear_bit_unlock(index, &hba->lrb_in_use);
 
 			/*
