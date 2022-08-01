@@ -85,7 +85,7 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
-#define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/android.hardware.graphics.composer"
+#define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/vendor.qti.hardware.display.composer-service"
 #define QTIHW_BIN_PREFIX "/vendor/bin/hw/vendor.qti.hardware"
 #define UDFPS_BIN_PREFIX "/vendor/bin/hw/android.hardware.biometrics.fingerprint"
 #define SFLINGER_BIN_PREFIX "/system/bin/surfaceflinger"
