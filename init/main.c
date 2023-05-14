@@ -102,7 +102,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/initcall.h>
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4ec8a314e0d2 (treewide: Clean up oplus phoenix)
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -611,7 +614,10 @@ asmlinkage __visible void __init start_kernel(void)
 	trap_init();
 	mm_init();
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4ec8a314e0d2 (treewide: Clean up oplus phoenix)
 	ftrace_init();
 
 	/* trace_printk can be enabled here */
@@ -1093,7 +1099,10 @@ static inline void mark_readonly(void)
 }
 #endif
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4ec8a314e0d2 (treewide: Clean up oplus phoenix)
 static int __ref kernel_init(void *unused)
 {
 	int ret;
