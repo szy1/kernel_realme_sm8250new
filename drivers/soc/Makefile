@@ -37,11 +37,6 @@ obj-y						+= oplus/sensor/
 obj-$(CONFIG_OPLUS_FEATURE_SENSOR_CRASH_MONITOR)	+= oplus/oppo_slpirst/
 #endif
 
-
-#ifdef OPLUS_FEATURE_HEALTHINFO
-obj-y     +=  oplus/healthinfo/
-#endif /* OPLUS_FEATURE_HEALTHINFO */
-
 #ifdef OPLUS_FEATURE_POWERINFO_STANDBY
 obj-$(CONFIG_OPLUS_WAKELOCK_PROFILER) += oplus/owakelock/
 #endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
@@ -54,10 +49,6 @@ obj-y += oplus/misc/
 #ted.lin@optimization add for im module
 obj-$(CONFIG_OPLUS_FEATURE_IM) += oplus/im/
 #endif /* OPLUS_FEATURE_IM */
-
-#ifdef OPLUS_FEATURE_TPD
-obj-$(CONFIG_OPLUS_FEATURE_TPD)     +=  oplus/tpd/
-#endif
 
 #Add for NandSwap
 obj-$(CONFIG_NANDSWAP)		+= oplus/oplus_nandswap/
