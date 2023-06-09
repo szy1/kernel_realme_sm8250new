@@ -1593,6 +1593,7 @@ struct task_struct {
 	struct task_info oplus_task_info;
 #endif
 
+
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_CPU_JANKINFO)
 	struct task_record record[OPLUS_NR_CPUS];	/* 2*u64 */
 #endif
@@ -1609,10 +1610,6 @@ struct task_struct {
 	unsigned in_epoll:1;
 #endif
 #endif /* OPLUS_FEATURE_HEALTHINFO */
-
-#ifdef CONFIG_OPLUS_FEATURE_TPP
-	int tpp_flag;
-#endif /* CONFIG_OPLUS_FEATURE_TPP */
 
 #ifdef CONFIG_OPLUS_FEATURE_IM
 	int im_flag;
