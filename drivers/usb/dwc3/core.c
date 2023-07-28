@@ -1633,7 +1633,7 @@ static int dwc3_remove(struct platform_device *pdev)
 	struct dwc3	*dwc = platform_get_drvdata(pdev);
 
 	dwc3_debugfs_exit(dwc);
-    dwc3_gadget_exit(dwc);
+        dwc3_gadget_exit(dwc);
 
 	dwc3_core_exit(dwc);
 	dwc3_ulpi_exit(dwc);
