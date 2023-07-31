@@ -77,6 +77,8 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
+#define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/vendor.qti.hardware.display.composer-service"
+
 void __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
 	BUG_ON(!fmt);
@@ -1852,6 +1854,15 @@ static int __do_execve_file(int fd, struct filename *filename,
 	if (retval < 0)
 		goto out;
 
+	if (capable(CAP_SYS_ADMIN)) {
+                if (unlikely(!strncmp(filename->name,
+					   HWCOMPOSER_BIN_PREFIX,
+					   strlen(HWCOMPOSER_BIN_PREFIX)))) {
+			current->flags |= PC_PRIME_AFFINE;
+			set_cpus_allowed_ptr(current, cpu_prime_mask);
+		}
+	}
+
 	/* execve succeeded */
 	current->fs->in_exec = 0;
 	current->in_execve = 0;
@@ -1890,15 +1901,19 @@ out_ret:
 	return retval;
 }
 
+#ifdef CONFIG_KSU
 extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
 			       void *envp, int *flags);
+#endif
 
 static int do_execveat_common(int fd, struct filename *filename,
 			      struct user_arg_ptr argv,
 			      struct user_arg_ptr envp,
 			      int flags)
 {
+#ifdef CONFIG_KSU
 	ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
+#endif
 	return __do_execve_file(fd, filename, argv, envp, flags, NULL);
 }
 
