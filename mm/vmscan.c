@@ -187,7 +187,13 @@ int kswapd_threads_current = DEF_KSWAPD_THREADS_PER_NODE;
 /*
  * From 0 .. 100.  Higher means more swappy.
  */
-int vm_swappiness = 60;
+int vm_swappiness = 160;
+
+/*
+ * Direct reclaim swappiness, exptct 0 - 60. Higher means more swappy and slower.
+ */
+int direct_vm_swappiness = 80;
+
 /*
  * The total number of pages which are beyond the high watermark within all
  * zones.
@@ -2630,7 +2636,7 @@ static int get_swappiness(struct lruvec *lruvec, struct scan_control *sc)
 {
 	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
 
-	if (mem_cgroup_get_nr_swap_pages(memcg) < MIN_LRU_BATCH)
+	if (mem_cgroup_get_nr_swap_pages(memcg) <= 0)
 		return 0;
 
 	return mem_cgroup_swappiness(memcg);
