@@ -2555,7 +2555,8 @@ static void geni_serial_write_term_regs(struct uart_port *uport, u32 loopback,
 	geni_read_reg_nolog(uport->membase, GENI_SER_M_CLK_CFG);
 }
 
-#if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
+#if (defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)) \
+	&& !defined(CONFIG_SERIAL_MSM_GENI_EARLY_CONSOLE)
 static int get_clk_cfg(unsigned long clk_freq, unsigned long *ser_clk)
 {
 	unsigned long root_freq[] = {7372800, 14745600, 19200000, 29491200,
@@ -2621,6 +2622,7 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 	int uart_sampling;
 	int clk_freq_diff;
 
+	dev_info(uport->dev, "%s: Start\n", __func__);
 	/* QUP_2.5.0 and older RUMI has sampling rate as 32 */
 	if (port->rumi_platform && port->is_console) {
 		geni_write_reg_nolog(0x21, uport->membase, GENI_SER_M_CLK_CFG);
@@ -2655,6 +2657,7 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 	 * Request for nearest possible required frequency instead of the exact
 	 * required frequency.
 	 */
+	dev_info(uport->dev, "%s: geni_se_clk_freq_match\n", __func__);
 	ret = geni_se_clk_freq_match(&port->serial_rsc, desired_rate,
 			&clk_idx, &clk_rate, false);
 	if (ret) {
@@ -2681,6 +2684,7 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 	ser_clk_cfg |= (clk_div << CLK_DIV_SHFT);
 
 	/* parity */
+	dev_info(uport->dev, "%s: check parity\n", __func__);
 	tx_trans_cfg = geni_read_reg_nolog(uport->membase,
 							SE_UART_TX_TRANS_CFG);
 	tx_parity_cfg = geni_read_reg_nolog(uport->membase,
@@ -2746,7 +2750,7 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 
 	if (likely(baud))
 		uart_update_timeout(uport, termios->c_cflag, baud);
-
+	dev_info(uport->dev, "%s: geni_serial_write_term_regs\n", __func__);
 	geni_serial_write_term_regs(uport, port->loopback, tx_trans_cfg,
 		tx_parity_cfg, rx_trans_cfg, rx_parity_cfg, bits_per_char,
 		stop_bit_len, ser_clk_cfg);
@@ -2768,6 +2772,7 @@ exit_set_termios:
 	msm_geni_serial_start_rx(uport);
 	if (!uart_console(uport))
 		msm_geni_serial_power_off(uport);
+	dev_info(uport->dev, "%s: End\n", __func__);
 	return;
 
 }
@@ -2864,7 +2869,7 @@ static ssize_t ver_info_show(struct device *dev,
 static DEVICE_ATTR_RO(ver_info);
 
 #if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
-static int __init msm_geni_console_setup(struct console *co, char *options)
+static int msm_geni_console_setup(struct console *co, char *options)
 {
 	struct uart_port *uport;
 	struct msm_geni_serial_port *dev_port;
@@ -2909,6 +2914,7 @@ static int __init msm_geni_console_setup(struct console *co, char *options)
 	return uart_set_options(uport, co, baud, parity, bits, flow);
 }
 
+#if !defined(CONFIG_SERIAL_MSM_GENI_EARLY_CONSOLE)
 static void
 msm_geni_serial_early_console_write(struct console *con, const char *s,
 			unsigned int n)
@@ -3077,6 +3083,7 @@ exit_geni_serial_earlyconsetup:
 }
 OF_EARLYCON_DECLARE(msm_geni_serial, "qcom,msm-geni-console",
 		msm_geni_serial_earlycon_setup);
+#endif /* CONFIG_SERIAL_MSM_GENI_EARLY_CONSOLE */
 
 static int console_register(struct uart_driver *drv)
 {
