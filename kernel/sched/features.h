@@ -44,7 +44,7 @@ SCHED_FEAT(LB_BIAS, true)
 /*
  * Decrement CPU capacity based on time not spent running tasks
  */
-SCHED_FEAT(NONTASK_CAPACITY, true)
+SCHED_FEAT(NONTASK_CAPACITY, false)
 
 /*
  * Queue remote wakeups on the target CPU and process them
@@ -121,3 +121,10 @@ SCHED_FEAT(SUGOV_RT_MAX_FREQ, false)
  * RT class.
  */
 SCHED_FEAT(SCHEDTUNE_BOOST_HOLD_ALL, false)
+
+/*
+ * Inflate the effective utilization of SchedTune-boosted tasks, which
+ * generally leads to usage of higher frequencies.
+ * If disabled, boosts will only bias tasks to higher-capacity CPUs.
+ */
+SCHED_FEAT(SCHEDTUNE_BOOST_UTIL, false)

@@ -132,7 +132,7 @@ module_param_named(sleep_disabled, sleep_disabled, bool, 0664);
  */
 s32 msm_cpuidle_get_deep_idle_latency(void)
 {
-	return 10;
+	return 2;
 }
 EXPORT_SYMBOL(msm_cpuidle_get_deep_idle_latency);
 
@@ -1486,7 +1486,8 @@ exit:
 		clusttimer_cancel();
 	}
 	if (cpu->bias) {
-		biastimer_cancel();
+                if (!idx)
+			biastimer_cancel();
 		cpu->bias = 0;
 	}
 	local_irq_enable();
