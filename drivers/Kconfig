@@ -236,7 +236,7 @@ source "drivers/energy_model/Kconfig"
 menu "KernelSU"
 config KSU
 	bool "Ship kernelsu with kernel"
-	default y
+	default n
 endmenu
 
 endmenu
