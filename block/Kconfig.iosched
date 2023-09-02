@@ -66,6 +66,9 @@ choice
 
 	config DEFAULT_NOOP
 		bool "No-op"
+	
+	config DEFAULT_SSG
+	    bool "ssg" if MQ_IOSCHED_SSG=y
 
 endchoice
 
@@ -75,6 +78,7 @@ config DEFAULT_IOSCHED
 	default "cfq" if DEFAULT_CFQ
 	default "zen" if DEFAULT_ZEN
 	default "noop" if DEFAULT_NOOP
+	default "ssg" if DEFAULT_SSG
 
 config MQ_IOSCHED_DEADLINE
 	tristate "MQ deadline I/O scheduler"
@@ -90,6 +94,20 @@ config MQ_IOSCHED_KYBER
 	  multiqueue and other fast devices. Given target latencies for reads and
 	  synchronous writes, it will self-tune queue depths to achieve that
 	  goal.
+
+config MQ_IOSCHED_SSG
+	tristate "SamSung Generic I/O scheduler"
+	default y
+	---help---
+	  SamSung Generic IO scheduler.
+
+config MQ_IOSCHED_SSG_CGROUP
+	tristate "Control Group for SamSung Generic I/O scheduler"
+	default n
+	depends on BLK_CGROUP
+	depends on MQ_IOSCHED_SSG
+	---help---
+	  Control Group for SamSung Generic IO scheduler.
 
 config IOSCHED_BFQ
 	tristate "BFQ I/O scheduler"
