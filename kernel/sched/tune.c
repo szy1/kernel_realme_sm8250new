@@ -798,15 +798,20 @@ window_policy_read(struct cgroup_subsys_state *css,
 }
 
 static int
-window_policy_write(struct cgroup_subsys_state *css, struct cftype *cft,
-		u64 window_policy)
+window_policy_write(struct cgroup_subsys_state* css, struct cftype* cft,
+	u64 window_policy)
 {
-	struct schedtune *st = css_st(css);
+	struct schedtune* st = css_st(css);
 
 	if (window_policy >= WINDOW_STATS_INVALID_POLICY)
 		return -EINVAL;
 
 	st->window_policy = window_policy;
+
+	return 0;
+
+}
+#endif
 
 #ifdef CONFIG_STUNE_ASSIST
 static int sched_boost_override_write_wrapper(struct cgroup_subsys_state *css,
@@ -817,6 +822,7 @@ static int sched_boost_override_write_wrapper(struct cgroup_subsys_state *css,
 
 	return sched_boost_override_write(css, cft, override);
 }
+#endif
 
 #ifdef CONFIG_SCHED_WALT
 static int sched_colocate_write_wrapper(struct cgroup_subsys_state *css,
@@ -827,7 +833,27 @@ static int sched_colocate_write_wrapper(struct cgroup_subsys_state *css,
 
 	return sched_colocate_write(css, cft, colocate);
 }
+
+
+static int boost_write_wrapper(struct cgroup_subsys_state *css,
+			       struct cftype *cft, s64 boost)
+{
+	if (task_is_booster(current))
+		return 0;
+
+	return boost_write(css, cft, boost);
+}
+
+static int prefer_idle_write_wrapper(struct cgroup_subsys_state *css,
+				     struct cftype *cft, u64 prefer_idle)
+{
+	if (task_is_booster(current))
+		return 0;
+
+	return prefer_idle_write(css, cft, prefer_idle);
+}
 #endif
+
 
 #ifdef OPLUS_FEATURE_POWER_EFFICIENCY
 #define PE_FUNC(NAME) \
@@ -853,25 +879,6 @@ PE_FUNC(discount_wait_time)
 PE_FUNC(top_task_filter)
 PE_FUNC(ed_task_filter)
 #endif /* OPLUS_FEATURE_POWER_EFFICIENCY */
-
-static int boost_write_wrapper(struct cgroup_subsys_state *css,
-			       struct cftype *cft, s64 boost)
-{
-	if (task_is_booster(current))
-		return 0;
-
-	return boost_write(css, cft, boost);
-}
-
-static int prefer_idle_write_wrapper(struct cgroup_subsys_state *css,
-				     struct cftype *cft, u64 prefer_idle)
-{
-	if (task_is_booster(current))
-		return 0;
-
-	return prefer_idle_write(css, cft, prefer_idle);
-}
-#endif
 
 static struct cftype files[] = {
 #ifdef CONFIG_SCHED_WALT
