@@ -889,6 +889,7 @@ struct task_struct {
 	atomic_t			usage;
 	/* Per task flags (PF_*), defined further below: */
 	unsigned int			flags;
+	unsigned int			pc_flags;
 	unsigned int			ptrace;
 
 #if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
@@ -1848,6 +1849,14 @@ extern struct pid *cad_pid;
 
 #define current_is_reclaimer() (current->flags & PF_RECLAIM_SHRINK)
 #endif
+
+/*
+ * Perf critical flags
+ */
+#define PC_LITTLE_AFFINE		0x00000001
+#define PC_PERF_AFFINE			0x00000002
+#define PC_PRIME_AFFINE			0x00000004
+#define PC_HP_AFFINE			0x00000008
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other
