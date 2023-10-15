@@ -1070,7 +1070,8 @@ void *__subsystem_get(const char *name, const char *fw_name)
 
 	if (!name)
 		return NULL;
-
+	if (fw_name && !strcmp(fw_name, "modem"))
+		msleep(3000);
 	subsys = retval = find_subsys_device(name);
 	if (!subsys)
 		return ERR_PTR(-ENODEV);
@@ -1488,34 +1489,8 @@ int subsystem_restart_dev(struct subsys_device *dev)
 		return 0;
 	}
 
-	switch (dev->restart_level) {
+	__subsystem_restart_dev(dev);
 
-	case RESET_SUBSYS_COUPLED:
-		__subsystem_restart_dev(dev);
-		break;
-	case RESET_SOC:
-	#ifdef VENDOR_EDIT
-		if (!strcmp(name, "esoc0") && oem_is_fulldump()) {
-			if (!direct_panic) {
-				delay_panic = true;
-			}
-			direct_panic = false;
-			__subsystem_restart_dev(dev);
-			break;
-		} else {
-			direct_panic = false;
-			__pm_stay_awake(dev->ssr_wlock);
-			schedule_work(&dev->device_restart_work);
-		}
-	#else
-		__pm_stay_awake(dev->ssr_wlock);
-		schedule_work(&dev->device_restart_work);
-	#endif
-		return 0;
-	default:
-		panic("subsys-restart: Unknown restart level!\n");
-		break;
-	}
 	module_put(dev->owner);
 	put_device(&dev->dev);
 
