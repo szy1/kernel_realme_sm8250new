@@ -87,6 +87,8 @@
 struct rq;
 struct cpuidle_state;
 
+#define CPU_NR		8
+
 extern __read_mostly bool sched_predl;
 extern unsigned int sched_capacity_margin_up[NR_CPUS];
 extern unsigned int sched_capacity_margin_down[NR_CPUS];
