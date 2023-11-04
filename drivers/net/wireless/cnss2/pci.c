@@ -1272,10 +1272,13 @@ static int cnss_pci_set_mhi_state(struct cnss_pci_data *pci_priv,
 		break;
 	case CNSS_MHI_RESUME:
 		mutex_lock(&pci_priv->mhi_ctrl->pm_mutex);
-		if (pci_priv->drv_connected_last)
+		if (pci_priv->drv_connected_last) {
+			cnss_pci_prevent_l1(&pci_priv->pci_dev->dev);
 			ret = mhi_pm_fast_resume(pci_priv->mhi_ctrl, true);
-		else
+			cnss_pci_allow_l1(&pci_priv->pci_dev->dev);
+		} else {
 			ret = mhi_pm_resume(pci_priv->mhi_ctrl);
+		}
 		mutex_unlock(&pci_priv->mhi_ctrl->pm_mutex);
 		break;
 	case CNSS_MHI_TRIGGER_RDDM:
@@ -1623,7 +1626,6 @@ int cnss_pci_call_driver_probe(struct cnss_pci_data *pci_priv)
 				    ret);
 			goto out;
 		}
-		clear_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state);
 		complete(&plat_priv->recovery_complete);
 	} else if (test_bit(CNSS_DRIVER_LOADING, &plat_priv->driver_state)) {
 		ret = pci_priv->driver_ops->probe(pci_priv->pci_dev,
@@ -1633,7 +1635,6 @@ int cnss_pci_call_driver_probe(struct cnss_pci_data *pci_priv)
 				    ret);
 			goto out;
 		}
-		clear_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state);
 		clear_bit(CNSS_DRIVER_LOADING, &plat_priv->driver_state);
 		set_bit(CNSS_DRIVER_PROBED, &plat_priv->driver_state);
 		complete_all(&plat_priv->power_up_complete);
@@ -1648,11 +1649,15 @@ int cnss_pci_call_driver_probe(struct cnss_pci_data *pci_priv)
 			complete_all(&plat_priv->power_up_complete);
 			goto out;
 		}
-		clear_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state);
 		clear_bit(CNSS_DRIVER_IDLE_RESTART, &plat_priv->driver_state);
 		complete_all(&plat_priv->power_up_complete);
 	} else {
 		complete(&plat_priv->power_up_complete);
+	}
+
+	if (test_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state)) {
+		clear_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state);
+		__pm_relax(plat_priv->recovery_ws);
 	}
 
 	cnss_pci_start_time_sync_update(pci_priv);
@@ -1675,7 +1680,7 @@ int cnss_pci_call_driver_remove(struct cnss_pci_data *pci_priv)
 
 	cnss_pci_stop_time_sync_update(pci_priv);
 
-	if (test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state) ||
+	if (test_bit(CNSS_IN_COLD_BOOT_CAL, &plat_priv->driver_state) ||
 	    test_bit(CNSS_FW_BOOT_RECOVERY, &plat_priv->driver_state) ||
 	    test_bit(CNSS_DRIVER_DEBUG, &plat_priv->driver_state)) {
 		cnss_pr_dbg("Skip driver remove\n");
@@ -2171,10 +2176,12 @@ retry:
 		if (ret)
 			goto stop_mhi;
 	} else if (timeout) {
-		if (test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state))
-			timeout = timeout << 1;
+		if (test_bit(CNSS_IN_COLD_BOOT_CAL, &plat_priv->driver_state))
+			timeout += WLAN_COLD_BOOT_CAL_TIMEOUT;
+		else
+			timeout += WLAN_DRIVER_LOAD_TIMEOUT;
 		mod_timer(&plat_priv->fw_boot_timer,
-			  jiffies + msecs_to_jiffies(timeout << 1));
+			  jiffies + msecs_to_jiffies(timeout));
 	}
 
 	return 0;
@@ -2428,13 +2435,25 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 		return -ENODEV;
 	}
 
-	if (!test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state))
+	if (!plat_priv->cbc_enabled ||
+	    test_bit(CNSS_COLD_BOOT_CAL_DONE, &plat_priv->driver_state))
 		goto register_driver;
 
-	cnss_pr_dbg("Start to wait for calibration to complete\n");
+	/* If enabled Cold Boot Calibration is the 1st step in init sequence.
+	 * CBC is done on file system_ready trigger. Qcacld should be loaded
+	 * from init.target.rc after that. Reject qcacld load from
+	 * vendor_modprobe.sh at early boot to satisfy this requirement.
+	 */
+	if (test_bit(CNSS_IN_COLD_BOOT_CAL, &plat_priv->driver_state)) {
+		cnss_pr_dbg("Start to wait for calibration to complete\n");
+	} else {
+		cnss_pr_err("Reject WLAN Driver insmod before CBC\n");
+		return -EPERM;
+	}
 
 	timeout = cnss_get_timeout(plat_priv, CNSS_TIMEOUT_CALIBRATION);
 	ret = wait_for_completion_timeout(&plat_priv->cal_complete,
+					  WLAN_COLD_BOOT_CAL_TIMEOUT +
 					  msecs_to_jiffies(timeout));
 	if (!ret) {
 		cnss_pr_err("Timeout (%ums) waiting for calibration to complete\n",
@@ -2453,14 +2472,11 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 				       0, cal_info);
 	}
 
+register_driver:
 	if (test_bit(CNSS_IN_REBOOT, &plat_priv->driver_state)) {
 		cnss_pr_dbg("Reboot or shutdown is in progress, ignore register driver\n");
 		return -EINVAL;
 	}
-
-register_driver:
-	cnss_pr_dbg("Delay %dms before probe WLAN driver\n", wlan_driver_delay_time);
-	msleep(wlan_driver_delay_time);
 	reinit_completion(&plat_priv->power_up_complete);
 	ret = cnss_driver_event_post(plat_priv,
 				     CNSS_DRIVER_EVENT_REGISTER_DRIVER,
@@ -2896,6 +2912,9 @@ static int cnss_pci_suspend_noirq(struct device *dev)
 	if (!pci_priv)
 		goto out;
 
+	if (!cnss_is_device_powered_on(pci_priv->plat_priv))
+		goto out;
+
 	driver_ops = pci_priv->driver_ops;
 	if (driver_ops && driver_ops->suspend_noirq)
 		ret = driver_ops->suspend_noirq(pci_dev);
@@ -2912,6 +2931,9 @@ static int cnss_pci_resume_noirq(struct device *dev)
 	struct cnss_wlan_driver *driver_ops;
 
 	if (!pci_priv)
+		goto out;
+
+	if (!cnss_is_device_powered_on(pci_priv->plat_priv))
 		goto out;
 
 	driver_ops = pci_priv->driver_ops;
@@ -3612,7 +3634,7 @@ void cnss_pci_fw_boot_timeout_hdlr(struct cnss_pci_data *pci_priv)
 	if (!plat_priv)
 		return;
 
-	if (test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state)) {
+	if (test_bit(CNSS_IN_COLD_BOOT_CAL, &plat_priv->driver_state)) {
 		cnss_pr_dbg("Ignore FW ready timeout for calibration mode\n");
 		return;
 	}

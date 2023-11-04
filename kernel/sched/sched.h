@@ -90,6 +90,8 @@
 struct rq;
 struct cpuidle_state;
 
+#define CPU_NR		8
+
 extern __read_mostly bool sched_predl;
 extern unsigned int sched_capacity_margin_up[NR_CPUS];
 extern unsigned int sched_capacity_margin_down[NR_CPUS];
@@ -1527,7 +1529,6 @@ struct sched_group_capacity {
 	unsigned long		capacity;
 	unsigned long		min_capacity;		/* Min per-CPU capacity in group */
 	unsigned long		max_capacity;		/* Max per-CPU capacity in group */
-	unsigned long		next_update;
 	int			imbalance;		/* XXX unrelated to capacity but shared group state */
 
 #ifdef CONFIG_SCHED_DEBUG
