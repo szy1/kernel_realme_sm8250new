@@ -933,6 +933,10 @@ extern void  update_jank_trace_info(struct task_struct *tsk, int trace_type, uns
 #endif
 #endif /* OPLUS_FEATURE_HEALTHINFO */
 
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+#include <linux/tpp/tpp.h>
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
+
 /*
  * Update the current task's runtime statistics.
  */
@@ -5785,6 +5789,9 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	assert_list_leaf_cfs_rq(rq);
 
 	hrtick_update(rq);
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	tpp_enqueue(cpu_of(rq), p);
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
 }
 
 static void set_next_buddy(struct sched_entity *se);
@@ -5868,6 +5875,9 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 
 	util_est_dequeue(&rq->cfs, p, task_sleep);
 	hrtick_update(rq);
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	tpp_dequeue(cpu_of(rq), p);
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
 }
 
 #ifdef CONFIG_SMP
@@ -7269,13 +7279,17 @@ static void find_best_target(struct sched_domain *sd, cpumask_t *cpus,
 	sg = start_sd->groups;
 
 	cpumask_copy(&new_allowed_cpus, &p->cpus_allowed);
-
 #ifdef CONFIG_OPLUS_FEATURE_TPD
 		if ((is_tpd_enable() && is_tpd_task(p)) ||
 			(is_st_tpd_enable() && is_st_tpd_task(p))) {
 			tpd_mask(p, &new_allowed_cpus);
 		}
 #endif
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	if (tpp_task(p)) {
+		cpumask_setall(&new_allowed_cpus);
+	}
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
 	do {
 		for_each_cpu_and(i, &new_allowed_cpus, sched_group_span(sg)) {
 			unsigned long capacity_curr = capacity_curr_of(i);
@@ -8257,6 +8271,11 @@ unlock:
 	    (prev_energy != ULONG_MAX) && (best_energy_cpu != prev_cpu) &&
 	    ((prev_energy - best_energy) <= prev_energy >> 4))
 		best_energy_cpu = prev_cpu;
+
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	if (tpp_task(p))
+		tpp_find_cpu(&best_energy_cpu, p);
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
 
 done:
 #ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
